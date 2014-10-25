@@ -1,0 +1,10 @@
+[package]
+
+name = "mandelbrot"
+version = "0.0.1"
+authors = ["Henry Nelson <hcnelson99@gmail.com>"]
+
+[dependencies.num]
+git = "https://github.com/rust-lang/num.git"
+[dependencies.rust-sfml]
+git = "https://github.com/jeremyletang/rust-sfml.git"
