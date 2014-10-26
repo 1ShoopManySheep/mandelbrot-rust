@@ -1,7 +1,7 @@
 extern crate rsfml;
 extern crate num;
 
-use rsfml::window::{VideoMode, event, Fullscreen, Close, ContextSettings, keyboard, };
+use rsfml::window::{VideoMode, event, Fullscreen, Close, ContextSettings, keyboard};
 use rsfml::graphics::{RenderWindow, RenderTarget, Texture, Sprite};
 use rsfml::system::{Vector2u};
 use rsfml::window::mouse::{MouseLeft, is_button_pressed};
@@ -22,12 +22,12 @@ fn main() {
 
     let mut texture = Texture::new(width.to_uint().unwrap(), height.to_uint().unwrap()).unwrap();
     //Where user is looking in terms of cartesian coordinates
-    let mut cart_screen_area = FloatRect::new(-2f64, 1f64, 3f64, 2f64);
-    
-    mandelbrot_render(&mut texture, Vector2u::new(width, height), cart_screen_area);
+    let mut views = vec!();
+    views.push(FloatRect::new(-2f64, 1f64, 3f64, 2f64));
+    mandelbrot_render(&mut texture, Vector2u::new(width, height), views.last().unwrap());
     window.draw(&Sprite::new_with_texture(&texture).unwrap());
     window.display();
-    
+    window.close();
     while window.is_open() {
         for event in window.events() {
             match event {
@@ -36,21 +36,34 @@ fn main() {
                                                   ctrl:   false, 
                                                   shift:  false, 
                                                   system: false} => window.close(),
+                event::KeyPressed{code: keyboard::BackSpace,
+                                                  alt:    false, 
+                                                  ctrl:   false, 
+                                                  shift:  false, 
+                                                  system: false} => {
+                                                    match views.pop() {
+                                                        Some(_) => {mandelbrot_render(&mut texture, Vector2u::new(width, height), views.last().unwrap());
+                                                                    window.draw(&Sprite::new_with_texture(&texture).unwrap());
+                                                                    window.display();
+                                                                   }
+                                                        None => {}
+                                                  }},
                 _ => {}
             }
 
             if is_button_pressed(MouseLeft) {
-                const ZOOM_FACTOR: f64 = 0.25f64;
+                const ZOOM_FACTOR: f64 = 0.5f64;
 
                 let pos = window.get_mouse_position();
                 let mouse_x = pos.x;
                 let mouse_y = pos.y;
                 //Zoom logic. Product of tinkering until it worked
-                cart_screen_area = FloatRect::new((mouse_x.to_f64().unwrap() / width.to_f64().unwrap())*cart_screen_area.width + cart_screen_area.left - (cart_screen_area.width*ZOOM_FACTOR*0.5),
-                                      (mouse_y.to_f64().unwrap() / height.to_f64().unwrap())*cart_screen_area.height*-1f64 + cart_screen_area.top + (cart_screen_area.width*ZOOM_FACTOR*0.5),
-                                      ZOOM_FACTOR * cart_screen_area.width, 
-                                      ZOOM_FACTOR * cart_screen_area.height);
-                mandelbrot_render(&mut texture, Vector2u::new(width, height), cart_screen_area);
+                let current_view = *views.last().unwrap();
+                views.push(FloatRect::new((mouse_x.to_f64().unwrap() / width.to_f64().unwrap())*current_view.width + current_view.left - (current_view.width*ZOOM_FACTOR*0.5),
+                                      (mouse_y.to_f64().unwrap() / height.to_f64().unwrap())*current_view.height*-1f64 + current_view.top + (current_view.width*ZOOM_FACTOR*0.5),
+                                      ZOOM_FACTOR * current_view.width, 
+                                      ZOOM_FACTOR * current_view.height));
+                mandelbrot_render(&mut texture, Vector2u::new(width, height), views.last().unwrap());
                 window.draw(&Sprite::new_with_texture(&texture).unwrap());
                 window.display();
             }
@@ -58,7 +71,7 @@ fn main() {
     }
 }
 
-fn mandelbrot_render(texture: &mut Texture, size: Vector2u, cart_screen_area: FloatRect) {
+fn mandelbrot_render(texture: &mut Texture, size: Vector2u, cart_screen_area: &FloatRect) {
     const ITERS: u8 = 255;
     const CUTOFF: f64 = 2.0;
 
@@ -75,8 +88,8 @@ fn mandelbrot_render(texture: &mut Texture, size: Vector2u, cart_screen_area: Fl
         let mut a = cart_screen_area.left;
         let mut x = 0u32;
         while x < width {
-            let c = Complex::new(a, b);
-            let mut z = c.clone();
+            let mut z = Complex::new(a, b);
+            let c = z.clone();
             let mut i = 0u8;
 
             while i < ITERS {
@@ -85,10 +98,18 @@ fn mandelbrot_render(texture: &mut Texture, size: Vector2u, cart_screen_area: Fl
                 i += 1;
             }
 
-            buf.push(i);
-            buf.push(i);
-            buf.push(i);
-            buf.push(255); //Opaque alpha value
+            if i == 255 {
+                buf.push(0);
+                buf.push(0);
+                buf.push(0);
+                buf.push(255);
+            } else {
+                let smooth = i.to_f64().unwrap() + 1f64 - (z.re * z.re + z.im * z.im).log10().log10() / 2f64.log10();
+                buf.push(((smooth * 0.05f64 + 0f64).sin() * 127f64 + 128f64).round().to_u8().unwrap());
+                buf.push(((smooth * 0.05f64 + 1f64).sin() * 127f64 + 128f64).round().to_u8().unwrap());
+                buf.push(((smooth * 0.05f64 + 2f64).sin() * 127f64 + 128f64).round().to_u8().unwrap());
+                buf.push(255); //Opaque alpha value
+            }
 
             a += width_step;
             x += 1;
