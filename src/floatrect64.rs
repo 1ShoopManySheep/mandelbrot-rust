@@ -11,4 +11,3 @@ impl FloatRect {
         FloatRect{left: left, top: top, width: width, height: height}
     }
 }
-
