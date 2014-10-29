@@ -77,7 +77,6 @@ fn main() {
 
 fn mandelbrot_render(texture: &mut Texture, size: Vector2u, cart_screen_area: &FloatRect) {
     const ITERS: u8 = 255;
-    const CUTOFF: f64 = 2.0;
 
     let width: u32 = size.x;
     let height: u32 = size.y;
@@ -96,8 +95,8 @@ fn mandelbrot_render(texture: &mut Texture, size: Vector2u, cart_screen_area: &F
             let mut i = 0u8;
 
             while i < ITERS {
+                if z.norm() > 2.0 {break;}
                 z = z*z + c;
-                if (z.re > CUTOFF) | (z.im > CUTOFF) {break;}
                 i += 1;
             }
 
